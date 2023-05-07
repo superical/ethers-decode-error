@@ -1,0 +1,79 @@
+{
+  "name": "ethers-decode-error",
+  "description": "Decode ethers.js smart contract errors into human-readable messages",
+  "version": "1.0.0",
+  "author": {
+    "name": "superical",
+    "url": "https://github.com/superical"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/superical/ethers-decode-error.git"
+  },
+  "license": "Apache-2.0",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "source": "src/index.ts",
+  "exports": {
+    "require": "./dist/index.cjs",
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.mjs"
+  },
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "umd:main": "dist/index.umd.js",
+  "engines": {
+    "node": ">= 16 <19"
+  },
+  "peerDependencies": {
+    "ethers": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "~29.5",
+    "@types/node": "~18",
+    "@typescript-eslint/eslint-plugin": "~5.59",
+    "@typescript-eslint/parser": "~5.59",
+    "ethers": "^5.7.2",
+    "eslint": "~8.38",
+    "eslint-config-prettier": "~8.8",
+    "eslint-plugin-jest": "~27.2",
+    "jest": "~29.5",
+    "microbundle": "^0.15.1",
+    "prettier": "~2.8",
+    "rimraf": "~5.0",
+    "ts-api-utils": "~0.0.44",
+    "ts-jest": "~29.1",
+    "typescript": "~5.0"
+  },
+  "scripts": {
+    "start": "node build/src/main.js",
+    "clean": "rimraf coverage build tmp",
+    "prebuild": "npm run lint",
+    "build": "rimraf dist && microbundle src/*.ts",
+    "build:watch": "tsc -w -p tsconfig.json",
+    "build:release": "npm run clean && tsc -p tsconfig.release.json",
+    "lint": "eslint . --ext .ts --ext .mts",
+    "test": "jest --coverage",
+    "prettier": "prettier --config .prettierrc --write .",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "blockchain",
+    "ethers",
+    "ethereum",
+    "smart-contracts",
+    "solidity",
+    "typescript",
+    "typechain",
+    "errors",
+    "decode-error",
+    "ethers-decode-error",
+    "ethers.js",
+    "ethersjs",
+    "rpc-error",
+    "json-rpc"
+  ]
+}
