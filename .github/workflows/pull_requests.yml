@@ -1,0 +1,10 @@
+on:
+  workflow_dispatch:
+  pull_request:
+
+name: 'Pull Request'
+
+jobs:
+  tests:
+    name: 'Lint and Tests'
+    uses: ./.github/workflows/tests.yml

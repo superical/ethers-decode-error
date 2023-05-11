@@ -1,0 +1,36 @@
+on:
+  push:
+    branches:
+      - main
+      - beta
+      - +([0-9])?(.{+([0-9]),x}).x
+
+name: 'Release'
+
+jobs:
+  tests:
+    name: 'Lint and Tests'
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    name: 'Publish Release'
+    needs: [tests]
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: 16
+      - run: npm ci --no-audit
+      - run: npm run build
+      - uses: codfish/semantic-release-action@v2
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: 'Output new release version'
+        if: steps.semantic.outputs.new-release-published == 'true'
+        run: |
+          echo "## New Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 ${{ steps.semantic.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY

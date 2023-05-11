@@ -1,14 +1,14 @@
 # ethers-decode-error
 
-[![TypeScript version][ts-badge]][typescript-5-0]
+[![Release][gha-badge]][gha-ci] [![TypeScript version][ts-badge]][typescript-5-0]
 [![License: Apache 2.0][license-badge]][license]
 
+[gha-ci]: https://github.com/superical/ethers-decode-error/actions/workflows/release.yml
+[gha-badge]: https://github.com/superical/ethers-decode-error/actions/workflows/release.yml/badge.svg
 [ts-badge]: https://img.shields.io/badge/TypeScript-5.0-blue.svg
 [typescript-5-0]: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/
 [license-badge]: https://img.shields.io/badge/license-Apache_2.0-blue.svg
 [license]: https://github.com/superical/ethers-decode-error/blob/main/LICENSE
-[gha-ci]: https://github.com/superical/ethers-decode-error/actions/workflows/release.yml
-[gha-badge]: https://github.com/superical/ethers-decode-error/actions/workflows/release.yml/badge.svg
 
 For those who've grappled with extracting the actual error message or reason from the JSON RPC when a transaction fails
 or a smart contract reverts, you'll certainly appreciate how cumbersome it could at times.
@@ -24,6 +24,7 @@ npm install ethers-decode-error --save
 ```
 
 You will need to install ethers.js in your project if you have not:
+
 ```bash
 npm install ethers@^5 --save
 ```
