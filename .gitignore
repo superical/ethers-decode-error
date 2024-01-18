@@ -29,3 +29,6 @@ build/
 .DS_Store
 
 dist/
+typechain-types/
+artifacts/
+cache/
