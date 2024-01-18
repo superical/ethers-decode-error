@@ -1,5 +1,4 @@
-import { Interface } from '@ethersproject/abi'
-import { BigNumber, utils } from 'ethers'
+import { AbiCoder, Interface } from 'ethers'
 import { panicErrorCodeToReason } from './panic'
 import { ErrorType } from './enums'
 import { DecodedError } from './types'
@@ -34,7 +33,7 @@ function getReturnDataFromError(error: any): string {
 export const decodeError = <T extends Interface>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error: any,
-  abiOrInterface?: T | ConstructorParameters<typeof utils.Interface>[0],
+  abiOrInterface?: T | ConstructorParameters<typeof Interface>[0],
 ): DecodedError => {
   if (!(error instanceof Error)) {
     return {
@@ -69,6 +68,7 @@ export const decodeError = <T extends Interface>(
     }
   }
 
+  const abi = new AbiCoder()
   if (returnData === '0x') {
     return {
       type: ErrorType.EmptyError,
@@ -78,7 +78,7 @@ export const decodeError = <T extends Interface>(
   } else if (returnData.startsWith(ERROR_STRING_PREFIX)) {
     const encodedReason = returnData.slice(ERROR_STRING_PREFIX.length)
     try {
-      const reason = utils.defaultAbiCoder.decode(['string'], `0x${encodedReason}`)[0]
+      const reason = abi.decode(['string'], `0x${encodedReason}`)[0] as string
       return {
         type: ErrorType.RevertError,
         error: reason,
@@ -94,7 +94,7 @@ export const decodeError = <T extends Interface>(
   } else if (returnData.startsWith(PANIC_CODE_PREFIX)) {
     const encodedReason = returnData.slice(PANIC_CODE_PREFIX.length)
     try {
-      const code = utils.defaultAbiCoder.decode(['uint256'], `0x${encodedReason}`)[0] as BigNumber
+      const code = abi.decode(['uint256'], `0x${encodedReason}`)[0] as bigint
       const reason = panicErrorCodeToReason(code) ?? 'Unknown panic code'
       return {
         type: ErrorType.PanicError,
@@ -117,10 +117,10 @@ export const decodeError = <T extends Interface>(
       }
     }
     let iface: Interface
-    if (abiOrInterface instanceof utils.Interface) {
+    if (abiOrInterface instanceof Interface) {
       iface = abiOrInterface
     } else {
-      iface = new utils.Interface(abiOrInterface)
+      iface = new Interface(abiOrInterface)
     }
     const customError = iface.parseError(returnData)
     return {

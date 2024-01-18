@@ -1,7 +1,7 @@
 {
   "name": "ethers-decode-error",
   "description": "Decode ethers.js smart contract errors into human-readable messages",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "superical",
     "url": "https://github.com/superical"
@@ -29,14 +29,14 @@
     "node": ">= 16 <19"
   },
   "peerDependencies": {
-    "ethers": "^5.0.0"
+    "ethers": "^6.0.0"
   },
   "devDependencies": {
     "@types/jest": "~29.5",
     "@types/node": "~18",
     "@typescript-eslint/eslint-plugin": "~5.59",
     "@typescript-eslint/parser": "~5.59",
-    "ethers": "^5.7.2",
+    "ethers": "^6.10.0",
     "eslint": "~8.38",
     "eslint-config-prettier": "~8.8",
     "eslint-plugin-jest": "~27.2",
