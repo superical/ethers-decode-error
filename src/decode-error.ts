@@ -31,14 +31,13 @@ function getReturnDataFromError(error: any): string {
 }
 
 export const decodeError = <T extends Interface>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  error: any,
+  error: unknown | Error,
   abiOrInterface?: T | ConstructorParameters<typeof Interface>[0],
 ): DecodedError => {
   if (!(error instanceof Error)) {
     return {
       type: ErrorType.UnknownError,
-      error: error.message ?? 'Unexpected error',
+      error: (error as any).message ?? 'Unexpected error',
       data: undefined,
     }
   }
@@ -72,7 +71,7 @@ export const decodeError = <T extends Interface>(
   if (returnData === '0x') {
     return {
       type: ErrorType.EmptyError,
-      error: 'Empty error data returned',
+      error: null,
       data: returnData,
     }
   } else if (returnData.startsWith(ERROR_STRING_PREFIX)) {
@@ -123,6 +122,15 @@ export const decodeError = <T extends Interface>(
       iface = new Interface(abiOrInterface)
     }
     const customError = iface.parseError(returnData)
+
+    if (!customError) {
+      return {
+        type: ErrorType.CustomError,
+        error: returnData.slice(0, 10),
+        data: returnData,
+      }
+    }
+
     return {
       type: ErrorType.CustomError,
       error: customError.name,
