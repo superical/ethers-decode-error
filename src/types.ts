@@ -3,7 +3,7 @@ import { Result } from 'ethers'
 
 export type DecodedError = {
   type: ErrorType
-  error: string
+  error: string | null
   data: string | undefined
   args?: Result
 }
