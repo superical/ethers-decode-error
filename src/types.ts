@@ -1,9 +1,8 @@
-import { ErrorType } from './enums'
-import { Result } from 'ethers'
+import { ErrorType } from './common/enums'
+import { ErrorDescription } from "ethers";
 
-export type DecodedError = {
+export type DecodedError = ErrorDescription & {
   type: ErrorType
-  error: string | null
-  data: string | undefined
-  args?: Result
+  reason: string | null
+  data: string | null
 }

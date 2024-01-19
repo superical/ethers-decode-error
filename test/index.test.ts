@@ -1,13 +1,20 @@
-import { DecodedError, decodeError, ErrorType } from '../src'
+import { DecodedError, ErrorType } from '../src'
 import { ethers } from 'hardhat'
 import { getBytes, hexlify, concat, zeroPadValue } from 'ethers'
 import type { ContractFactory } from 'ethers'
-import { MockContract, MockContract__factory } from '../typechain-types'
+import {
+  MockContract,
+  MockContract__factory,
+  MockNestedContract,
+  MockNestedContract__factory,
+} from '../typechain-types'
 import { expect } from 'chai'
+import { ErrorDecoder } from '../src'
 
-describe('decodeError function', () => {
+describe('ErrorDecoder', () => {
   let contract: MockContract
 
+  let errorDecoder: ErrorDecoder
   let decodedError: DecodedError
 
   beforeEach(async () => {
@@ -15,13 +22,15 @@ describe('decodeError function', () => {
       'MockContract',
     )) as ContractFactory as MockContract__factory
     contract = await contractFactory.deploy()
+
+    errorDecoder = ErrorDecoder.create()
   })
 
   describe('When reverted with an unknown error', () => {
     const fakeUnknownError = {}
 
     beforeEach(async () => {
-      decodedError = decodeError(fakeUnknownError)
+      decodedError = errorDecoder.decode(fakeUnknownError)
     })
 
     it('should return error type as UnknownError', async () => {
@@ -30,17 +39,17 @@ describe('decodeError function', () => {
 
     it('should use error message if it exists', async () => {
       const fakeErrorMsg = 'Test message'
-      decodedError = decodeError({ message: fakeErrorMsg })
+      decodedError = errorDecoder.decode({ message: fakeErrorMsg })
 
-      expect(decodedError.error).to.equal(fakeErrorMsg)
+      expect(decodedError.reason).to.equal(fakeErrorMsg)
     })
 
     it('should return error message as Unexpected error', async () => {
-      expect(decodedError.error).to.equal('Unexpected error')
+      expect(decodedError.reason).to.equal('Unexpected error')
     })
 
-    it('should return undefined data', async () => {
-      expect(decodedError.data).to.be.undefined
+    it('should return null data', async () => {
+      expect(decodedError.data).to.be.null
     })
   })
 
@@ -49,19 +58,19 @@ describe('decodeError function', () => {
       const fakeUnknownError = new Error('The user rejected transaction in wallet')
 
       beforeEach(async () => {
-        decodedError = decodeError(fakeUnknownError)
+        decodedError = errorDecoder.decode(fakeUnknownError)
       })
 
       it('should return error type as UserError', async () => {
-        expect(decodedError.type).to.equal(ErrorType.UserError)
+        expect(decodedError.type).to.equal(ErrorType.UserRejectError)
       })
 
       it('should return user rejected error message', async () => {
-        expect(decodedError.error).to.equal('User has rejected the transaction')
+        expect(decodedError.reason).to.equal(fakeUnknownError.message)
       })
 
-      it('should return undefined data', async () => {
-        expect(decodedError.data).to.be.undefined
+      it('should return null data', async () => {
+        expect(decodedError.data).to.be.null
       })
     })
 
@@ -70,7 +79,7 @@ describe('decodeError function', () => {
       const fakeUnknownError = new Error(fakeErrorMessage)
 
       beforeEach(async () => {
-        decodedError = decodeError(fakeUnknownError)
+        decodedError = errorDecoder.decode(fakeUnknownError)
       })
 
       it('should return error type as UnknownError', async () => {
@@ -78,11 +87,11 @@ describe('decodeError function', () => {
       })
 
       it('should return the error message', async () => {
-        expect(decodedError.error).to.equal(fakeErrorMessage)
+        expect(decodedError.reason).to.equal(fakeErrorMessage)
       })
 
-      it('should return undefined data', async () => {
-        expect(decodedError.data).to.be.undefined
+      it('should return null data', async () => {
+        expect(decodedError.data).to.be.null
       })
     })
 
@@ -90,7 +99,7 @@ describe('decodeError function', () => {
       const fakeUnknownError = new Error()
 
       beforeEach(async () => {
-        decodedError = decodeError(fakeUnknownError)
+        decodedError = errorDecoder.decode(fakeUnknownError)
       })
 
       it('should return error type as UnknownError', async () => {
@@ -98,11 +107,11 @@ describe('decodeError function', () => {
       })
 
       it('should return the error message as Unknown error', async () => {
-        expect(decodedError.error).to.equal('Unknown error')
+        expect(decodedError.reason).to.equal('Unknown error')
       })
 
-      it('should return undefined data', async () => {
-        expect(decodedError.data).to.be.undefined
+      it('should return null data', async () => {
+        expect(decodedError.data).to.be.null
       })
     })
   })
@@ -114,7 +123,7 @@ describe('decodeError function', () => {
           await contract.revertWithReason('Test message')
           expect.fail('Expected to revert')
         } catch (e) {
-          decodedError = decodeError(e)
+          decodedError = errorDecoder.decode(e)
         }
       })
 
@@ -122,8 +131,8 @@ describe('decodeError function', () => {
         expect(decodedError.type).to.equal(ErrorType.RevertError)
       })
 
-      it('should return args as undefined', async () => {
-        expect(decodedError.args).to.be.undefined
+      it('should return args with reason', async () => {
+        expect(decodedError.args[0]).to.equal('Test message')
       })
 
       it('should return revert error data', async () => {
@@ -134,7 +143,7 @@ describe('decodeError function', () => {
       })
 
       it('should capture the revert', async () => {
-        expect(decodedError.error).to.equal('Test message')
+        expect(decodedError.reason).to.equal('Test message')
       })
     })
 
@@ -144,7 +153,7 @@ describe('decodeError function', () => {
           await contract.revertWithoutReason()
           expect.fail('Expected to revert')
         } catch (e) {
-          decodedError = decodeError(e)
+          decodedError = errorDecoder.decode(e)
         }
       })
 
@@ -152,8 +161,8 @@ describe('decodeError function', () => {
         expect(decodedError.type).to.equal(ErrorType.EmptyError)
       })
 
-      it('should return args as undefined', async () => {
-        expect(decodedError.args).to.be.undefined
+      it('should return empty args', async () => {
+        expect(decodedError.args.length).to.equal(0)
       })
 
       it('should return revert error data', async () => {
@@ -163,7 +172,7 @@ describe('decodeError function', () => {
       })
 
       it('should capture revert without reasons', async () => {
-        expect(decodedError.error).to.be.null
+        expect(decodedError.reason).to.be.null
       })
     })
   })
@@ -174,7 +183,7 @@ describe('decodeError function', () => {
         await contract.panicUnderflow()
         expect.fail('Expected to revert')
       } catch (e) {
-        decodedError = decodeError(e)
+        decodedError = errorDecoder.decode(e)
       }
     })
 
@@ -182,8 +191,8 @@ describe('decodeError function', () => {
       expect(decodedError.type).to.equal(ErrorType.PanicError)
     })
 
-    it('should return args as undefined', async () => {
-      expect(decodedError.args).to.be.undefined
+    it('should return args containing panic 0x11n', async () => {
+      expect(decodedError.args[0]).to.equal(0x11n)
     })
 
     it('should return panic error data', async () => {
@@ -193,7 +202,7 @@ describe('decodeError function', () => {
     })
 
     it('should capture the panic error', async () => {
-      expect(decodedError.error).to.equal(
+      expect(decodedError.reason).to.equal(
         'Arithmetic operation underflowed or overflowed outside of an unchecked block',
       )
     })
@@ -229,160 +238,329 @@ describe('decodeError function', () => {
       },
     ]
 
-    describe('When custom error has no parameters', () => {
-      const errorData = ifaceCustomErrorNoParam
-
+    const testMatrixUseAbiArray = [true, false]
+    Object.keys(testMatrixUseAbiArray).forEach((useAbiArray) => {
       beforeEach(async () => {
-        try {
-          await contract.revertWithCustomErrorNoParam()
-          expect.fail('Expected to revert')
-        } catch (e) {
-          decodedError = decodeError(e, abi)
-        }
+        errorDecoder = ErrorDecoder.create(
+          useAbiArray ? [abi] : [MockContract__factory.createInterface()],
+        )
       })
 
-      it('should capture custom errors with no parameters', async () => {
-        expect(decodedError.error).to.equal('CustomErrorNoParam')
-      })
+      describe(`When using ${useAbiArray ? 'ABI array' : 'contract interface'}`, () => {
+        describe('When custom error has no parameters', () => {
+          const errorData = ifaceCustomErrorNoParam
 
-      it('should return custom error data', async () => {
-        expect(decodedError.data).to.equal(errorData)
-      })
+          beforeEach(async () => {
+            try {
+              await contract.revertWithCustomErrorNoParam()
+              expect.fail('Expected to revert')
+            } catch (e) {
+              decodedError = errorDecoder.decode(e)
+            }
+          })
 
-      it('should return empty args', async () => {
-        expect(decodedError.args.length).to.equal(0)
-      })
+          it('should capture custom errors with no parameters', async () => {
+            expect(decodedError.reason).to.equal('CustomErrorNoParam')
+          })
 
-      it('should return error type as CustomError', async () => {
-        expect(decodedError.type).to.equal(ErrorType.CustomError)
-      })
+          it('should return custom error data', async () => {
+            expect(decodedError.data).to.equal(errorData)
+          })
 
-      describe('When reverted custom error is not in ABI', () => {
-        beforeEach(async () => {
-          try {
-            await contract.revertWithCustomErrorNoParam()
-            expect.fail('Expected to revert')
-          } catch (e) {
-            decodedError = decodeError(e, [abi[1]])
-          }
+          it('should return empty args', async () => {
+            expect(decodedError.args.length).to.equal(0)
+          })
+
+          it('should return error type as CustomError', async () => {
+            expect(decodedError.type).to.equal(ErrorType.CustomError)
+          })
+
+          describe('When reverted custom error is not in ABI', () => {
+            beforeEach(async () => {
+              errorDecoder = ErrorDecoder.create([[abi[1]]])
+              try {
+                await contract.revertWithCustomErrorNoParam()
+                expect.fail('Expected to revert')
+              } catch (e) {
+                decodedError = errorDecoder.decode(e)
+              }
+            })
+
+            it('should return empty args', async () => {
+              expect(decodedError.args.length).to.equal(0)
+            })
+
+            it('should return the selector of custom error name as reason', async () => {
+              expect(decodedError.reason).to.equal(
+                `No ABI for custom error ${ifaceCustomErrorNoParam}`,
+              )
+            })
+
+            it('should return the selector of custom error as name', async () => {
+              expect(decodedError.name).to.equal(ifaceCustomErrorNoParam)
+            })
+
+            it('should return custom error data', async () => {
+              expect(decodedError.data).to.equal(errorData)
+            })
+
+            it('should return error type as CustomError', async () => {
+              expect(decodedError.type).to.equal(ErrorType.CustomError)
+            })
+          })
+
+          describe('When no ABI is supplied for custom error', () => {
+            beforeEach(async () => {
+              errorDecoder = ErrorDecoder.create()
+              try {
+                await contract.revertWithCustomErrorNoParam()
+                expect.fail('Expected to revert')
+              } catch (e) {
+                decodedError = errorDecoder.decode(e)
+              }
+            })
+
+            it('should return the selector of custom error name as reason', async () => {
+              expect(decodedError.reason).to.equal(
+                `No ABI for custom error ${ifaceCustomErrorNoParam}`,
+              )
+            })
+
+            it('should return the selector of custom error as name', async () => {
+              expect(decodedError.name).to.equal(ifaceCustomErrorNoParam)
+            })
+
+            it('should return empty args', async () => {
+              expect(decodedError.args.length).to.equal(0)
+            })
+
+            it('should return custom error data', async () => {
+              expect(decodedError.data).to.equal(errorData)
+            })
+
+            it('should return error type as CustomError', async () => {
+              expect(decodedError.type).to.equal(ErrorType.CustomError)
+            })
+          })
         })
 
-        it('should return undefined args', async () => {
-          expect(decodedError.args).to.be.undefined
-        })
+        describe('When custom error has parameters', () => {
+          const errorData = concat([
+            ifaceCustomErrorWithParams,
+            zeroPadValue(getBytes(fakeAddress), 32),
+            zeroPadValue(hexlify(`0x${BigInt(fakeUint).toString(16)}`), 32),
+          ])
 
-        it('should return the first 4 bytes of custom error name as error', async () => {
-          expect(decodedError.error).to.equal(ifaceCustomErrorNoParam)
-        })
+          beforeEach(async () => {
+            try {
+              await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
+              expect.fail('Expected to revert')
+            } catch (e) {
+              decodedError = errorDecoder.decode(e)
+            }
+          })
 
-        it('should return custom error data', async () => {
-          expect(decodedError.data).to.equal(errorData)
-        })
-      })
+          it('should capture custom errors with parameters', async () => {
+            expect(decodedError.reason).to.equal('CustomErrorWithParams')
+          })
 
-      describe('When no ABI is supplied for custom error', () => {
-        beforeEach(async () => {
-          try {
-            await contract.revertWithCustomErrorNoParam()
-            expect.fail('Expected to revert')
-          } catch (e) {
-            decodedError = decodeError(e)
-          }
-        })
+          it('should return custom error data', async () => {
+            expect(decodedError.data).to.equal(errorData)
+          })
 
-        it('should return the first 4 bytes of custom error name as error', async () => {
-          expect(decodedError.error).to.equal(ifaceCustomErrorNoParam)
-        })
+          it('should return custom error parameters in args', async () => {
+            expect(decodedError.args[0]).to.equal(fakeAddress)
+            expect(decodedError.args[1]).to.equal(fakeUint)
 
-        it('should return undefined args', async () => {
-          expect(decodedError.args).to.be.undefined
-        })
+            expect(decodedError.args['param1']).to.equal(fakeAddress)
+            expect(decodedError.args['param2']).to.equal(fakeUint)
+          })
 
-        it('should return custom error data', async () => {
-          expect(decodedError.data).to.equal(errorData)
+          it('should return error type as CustomError', async () => {
+            expect(decodedError.type).to.equal(ErrorType.CustomError)
+          })
+
+          describe('When reverted custom error is not in ABI', () => {
+            beforeEach(async () => {
+              errorDecoder = ErrorDecoder.create([[abi[0]]])
+              try {
+                await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
+                expect.fail('Expected to revert')
+              } catch (e) {
+                decodedError = errorDecoder.decode(e)
+              }
+            })
+
+            it('should return empty args', async () => {
+              expect(decodedError.args.length).to.equal(0)
+            })
+
+            it('should return the selector of custom error name as reason', async () => {
+              expect(decodedError.reason).to.equal(
+                `No ABI for custom error ${ifaceCustomErrorWithParams}`,
+              )
+            })
+
+            it('should return the selector of custom error as name', async () => {
+              expect(decodedError.name).to.equal(ifaceCustomErrorWithParams)
+            })
+
+            it('should return custom error data', async () => {
+              expect(decodedError.data).to.equal(errorData)
+            })
+
+            it('should return error type as CustomError', async () => {
+              expect(decodedError.type).to.equal(ErrorType.CustomError)
+            })
+          })
+
+          describe('When no ABI is supplied for custom error', () => {
+            beforeEach(async () => {
+              errorDecoder = ErrorDecoder.create()
+              try {
+                await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
+                expect.fail('Expected to revert')
+              } catch (e) {
+                decodedError = errorDecoder.decode(e)
+              }
+            })
+
+            it('should return the selector of custom error name as reason', async () => {
+              expect(decodedError.reason).to.equal(
+                `No ABI for custom error ${ifaceCustomErrorWithParams}`,
+              )
+            })
+
+            it('should return the selector of custom error as name', async () => {
+              expect(decodedError.name).to.equal(ifaceCustomErrorWithParams)
+            })
+
+            it('should return empty args', async () => {
+              expect(decodedError.args.length).to.equal(0)
+            })
+
+            it('should return custom error data', async () => {
+              expect(decodedError.data).to.equal(errorData)
+            })
+
+            it('should return error type as CustomError', async () => {
+              expect(decodedError.type).to.equal(ErrorType.CustomError)
+            })
+          })
         })
       })
     })
 
-    describe('When custom error has parameters', () => {
-      const errorData = concat([
-        ifaceCustomErrorWithParams,
-        zeroPadValue(getBytes(fakeAddress), 32),
-        zeroPadValue(hexlify(`0x${BigInt(fakeUint).toString(16)}`), 32),
-      ])
+    describe('When reverted with nested custom error', () => {
+      let nestedContract: MockNestedContract
+      let nestedContractAddress: string
+
+      const nestedErrorAbi = [
+        {
+          inputs: [
+            {
+              internalType: 'uint256',
+              name: 'param',
+              type: 'uint256',
+            },
+          ],
+          name: 'NestedError',
+          type: 'error',
+        },
+      ]
 
       beforeEach(async () => {
-        try {
-          await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
-          expect.fail('Expected to revert')
-        } catch (e) {
-          decodedError = decodeError(e, abi)
-        }
+        const nestedContractFactory = (await ethers.getContractFactory(
+          'MockNestedContract',
+        )) as ContractFactory as MockNestedContract__factory
+        nestedContract = await nestedContractFactory.deploy()
+        nestedContractAddress = await nestedContract.getAddress()
       })
 
-      it('should capture custom errors with parameters', async () => {
-        expect(decodedError.error).to.equal('CustomErrorWithParams')
-      })
-
-      it('should return custom error data', async () => {
-        expect(decodedError.data).to.equal(errorData)
-      })
-
-      it('should return custom error parameters in args', async () => {
-        expect(decodedError.args[0]).to.equal(fakeAddress)
-        expect(decodedError.args[1]).to.equal(fakeUint)
-
-        expect(decodedError.args['param1']).to.equal(fakeAddress)
-        expect(decodedError.args['param2']).to.equal(fakeUint)
-      })
-
-      it('should return error type as CustomError', async () => {
-        expect(decodedError.type).to.equal(ErrorType.CustomError)
-      })
-
-      describe('When reverted custom error is not in ABI', () => {
+      describe('When provided only with interface objects', () => {
         beforeEach(async () => {
+          errorDecoder = ErrorDecoder.create([
+            MockContract__factory.createInterface(),
+            MockNestedContract__factory.createInterface(),
+          ])
+        })
+
+        it('should merge the interfaces the recognise error from MockContract', async () => {
           try {
             await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = decodeError(e, [abi[0]])
+            decodedError = errorDecoder.decode(e)
           }
+
+          expect(decodedError.name).to.equal('CustomErrorWithParams')
         })
 
-        it('should return undefined args', async () => {
-          expect(decodedError.args).to.be.undefined
-        })
+        it('should merge the interfaces the recognise error from MockNestedContract', async () => {
+          try {
+            await contract.revertWithCustomNestedError(nestedContractAddress, fakeUint)
+            expect.fail('Expected to revert')
+          } catch (e) {
+            decodedError = errorDecoder.decode(e)
+          }
 
-        it('should return the first 4 bytes of custom error name as error', async () => {
-          expect(decodedError.error).to.equal(ifaceCustomErrorWithParams)
-        })
-
-        it('should return custom error data', async () => {
-          expect(decodedError.data).to.equal(errorData)
+          expect(decodedError.name).to.equal('NestedError')
         })
       })
 
-      describe('When no ABI is supplied for custom error', () => {
+      describe('When provided only with ABIs', () => {
         beforeEach(async () => {
+          errorDecoder = ErrorDecoder.create([abi, nestedErrorAbi])
+        })
+
+        it('should merge the interfaces the recognise error from MockContract', async () => {
           try {
             await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = decodeError(e)
+            decodedError = errorDecoder.decode(e)
           }
+
+          expect(decodedError.name).to.equal('CustomErrorWithParams')
         })
 
-        it('should return the first 4 bytes of custom error name as error', async () => {
-          expect(decodedError.error).to.equal(ifaceCustomErrorWithParams)
+        it('should merge the interfaces the recognise error from MockNestedContract', async () => {
+          try {
+            await contract.revertWithCustomNestedError(nestedContractAddress, fakeUint)
+            expect.fail('Expected to revert')
+          } catch (e) {
+            decodedError = errorDecoder.decode(e)
+          }
+
+          expect(decodedError.name).to.equal('NestedError')
+        })
+      })
+
+      describe('When provided interface objects and ABIs', () => {
+        beforeEach(async () => {
+          errorDecoder = ErrorDecoder.create([abi, MockNestedContract__factory.createInterface()])
         })
 
-        it('should return undefined args', async () => {
-          expect(decodedError.args).to.be.undefined
+        it('should merge the interfaces the recognise error from MockContract', async () => {
+          try {
+            await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
+            expect.fail('Expected to revert')
+          } catch (e) {
+            decodedError = errorDecoder.decode(e)
+          }
+
+          expect(decodedError.name).to.equal('CustomErrorWithParams')
         })
 
-        it('should return custom error data', async () => {
-          expect(decodedError.data).to.equal(errorData)
+        it('should merge the interfaces the recognise error from MockNestedContract', async () => {
+          try {
+            await contract.revertWithCustomNestedError(nestedContractAddress, fakeUint)
+            expect.fail('Expected to revert')
+          } catch (e) {
+            decodedError = errorDecoder.decode(e)
+          }
+
+          expect(decodedError.name).to.equal('NestedError')
         })
       })
     })

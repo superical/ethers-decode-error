@@ -1,4 +1,4 @@
 export type * from './types'
 
-export * from './enums'
-export { decodeError } from './decode-error'
+export * from './common/enums'
+export { ErrorDecoder } from './error-decoder'
