@@ -28,6 +28,9 @@ jobs:
           echo "## Lint results" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
+      - name: 'Run tests'
+        run: npm run test
+
       - name: 'Test run build'
         run: npm run build
 
