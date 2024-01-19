@@ -1,6 +1,9 @@
 // From Hardhat's panic codes
+// https://docs.soliditylang.org/en/v0.8.13/control-structures.html?highlight=panic#panic-via-assert-and-error-via-require
 export const panicErrorCodeToReason = (errorCode: bigint): string | undefined => {
   switch (errorCode) {
+    case 0x0n:
+      return 'Generic compiler inserted panic'
     case 0x1n:
       return 'Assertion error'
     case 0x11n:
