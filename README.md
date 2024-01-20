@@ -13,8 +13,7 @@
 For those who've grappled with extracting the actual error message or reason from the JSON RPC when a transaction fails
 or a smart contract reverts, you'll certainly appreciate how cumbersome it could at times.
 
-This utility library can help to simplify the process for you. You simply pass in the error object, the library will
-return the actual error message. It works with the regular revert errors, panic errors, Metamask errors and custom
+This is a simple utility library to help simplify the process of determining the actual errors from smart contract. You simply pass in the error object and you will get the actual error message and a bunch of other information about the error. It works with the regular revert errors, panic errors, Metamask rejection error and custom
 errors.
 
 ## Installation
@@ -26,50 +25,92 @@ npm install ethers-decode-error --save
 You will need to install ethers.js in your project if you have not:
 
 ```bash
-npm install ethers@^5 --save
+npm install ethers@^6 --save
 ```
+
+> 💡 If you wish to use it with ethers v5 instead, please refer to the [v1 release](../../tree/1.x).
 
 ## Usage
 
-To decode an error, pass it as the first argument to the `decodeError` function. This will provide you with the
-decoded error, allowing you to decide the best course of action from there.
+This library decodes an ethers error object reverted from a smart contract into results that lets you decide the best course of action from there.
+
+Start by creating an instance of the `ErrorDecoder`:
+
+```typescript
+import { ErrorDecoder } from 'ethers-decode-error'
+
+const errorDecoder = ErrorDecoder.create()
+```
+
+The `create` method optionally accepts an array of ABI or contract interface objects as its first argument. Although the ABI is not required for normal reverts, it's recommended to supply the ABI or contract interfaces if you're expecting custom errors. See the examples in [Custom Errors](#custom-errors) section for more details.
+
+After creating the instance, you can repeatedly use the `decode` method throughout your code to decode error objects:
+
+```typescript
+try {
+  // Send a transaction that will revert
+} catch (err) {
+  const decodedError: DecodedError = errorDecoder.decode(err)
+  console.log(`Revert reason: ${decodedError.reason}`)
+}
+```
+
+The `DecodedError` object is the result of the decoded error, which contains the following properties for handling errors:
+
+| Property    | Value Type       | Remarks                                                                                                                                                                                                           |
+| ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`      | `ErrorType`      | The type of the error. For eg, a revert due to custom error will have `ErrorType.CustomError`.                                                                                                                    |
+| `reason`    | `string \| null` | The decoded error message, or `null` if error is unknown or has no message.                                                                                                                                       |
+| `data`      | `string \| null` | The raw data bytes returned from the contract error, or `null` if error is unknown or empty.                                                                                                                      |
+| `args`      | `Array`          | The parameter values of the error if exists. For custom errors, the `args` will always be empty if no ABI or interface is supplied for decoding.                                                                  |
+| `name`      | `string \| null` | The name of the error. This can be used to identify the custom error emitted. For eg, `InvalidTokenSwap`. If no ABI is supplied for custom error, this will be the selector hex. `null` if error is `EmptyError`. |
+| `selector`  | `string \| null` | The hexidecimal value of the selector. `null` if error is `EmptyError`.                                                                                                                                           |
+| `signature` | `string \| null` | The signature of the error. `null` if error is `EmptyError` or no specified ABI for custom error.                                                                                                                 |
+| `fragment`  | `string \| null` | The ABI fragment of the error. `null` if error is `EmptyError` or no specified ABI for custom error.                                                                                                              |
+
+## Examples
 
 ### Revert/Require Errors
 
 ```typescript
-import { decodeError } from 'ethers-decode-error'
+import { ErrorDecoder } from 'ethers-decode-error'
+
+const errorDecoder = ErrorDecoder.create()
 
 const WETH = new ethers.Contract('0xC02aa...756Cc2', abi, provider)
 try {
   const tx = await WETH.transfer('0x0', amount)
   await tx.wait()
 } catch (err) {
-  const { error } = decodeError(err)
+  const { reason } = errorDecoder.decode(err)
   // Prints "ERC20: transfer to the zero address"
-  console.log('Revert reason:', error)
+  console.log('Revert reason:', reason)
 }
 ```
 
 ### Panic Errors
 
 ```typescript
-import { decodeError } from 'ethers-decode-error'
+import { ErrorDecoder } from 'ethers-decode-error'
 
-const MyWeirdContract = new ethers.Contract('0x12345678', abi, provider)
+const errorDecoder = ErrorDecoder.create()
+
+const OverflowContract = new ethers.Contract('0x12345678', abi, provider)
 try {
-  const tx = await MyWeirdContract.add(123)
+  const tx = await OverflowContract.add(123)
   await tx.wait()
 } catch (err) {
-  const { error } = decodeError(err)
+  const { reason } = errorDecoder.decode(err)
   // Prints "Arithmetic operation underflowed or overflowed outside of an unchecked block"
-  console.log('Panic message:', error)
+  console.log('Panic message:', reason)
 }
 ```
 
 ### Custom Errors
 
 ```typescript
-import { decodeError, DecodedError } from 'ethers-decode-error'
+import { ErrorDecoder } from 'ethers-decode-error'
+import type { DecodedError } from 'ethers-decode-error'
 
 const abi = [
   {
@@ -84,35 +125,97 @@ const abi = [
     type: 'error',
   },
 ]
+const errorDecoder = ErrorDecoder.create([abi])
 
 const MyCustomErrorContract = new ethers.Contract('0x12345678', abi, provider)
 try {
   const tx = await MyCustomErrorContract.swap('0xabcd', 123)
   await tx.wait()
 } catch (err) {
-  const decodedError = decodeError(err, abi)
+  const decodedError = errorDecoder.decode(err)
   const reason = customReasonMapper(decodedError)
   // Prints "Invalid swap with token contract address 0xabcd."
   console.log('Custom error reason:', reason)
 }
 
-const customReasonMapper = ({ error, args }: DecodedError): string => {
-  switch (error) {
+const customReasonMapper = ({ name, args }: DecodedError): string => {
+  switch (name) {
     case 'InvalidSwapToken':
+      // You can access the error parameters using their index:
       return `Invalid swap with token contract address ${args[0]}.`
+      // Or, you could also access the error parameters using their names:
+      return `Invalid swap with token contract address ${args['token']}.`
     default:
       return 'The transaction has reverted.'
   }
 }
 ```
 
-If you're using TypeChain in your project, simply pass the contract's `Interface` to the `decodeError` function so that
-it can decode all custom errors that the contract could possibly revert with:
+#### Custom Errors ABI and Interfaces
+
+Although the ABI or ethers `Interface` object of the contract is not required when decoding normal revert errors, it is recommended to provide it if you're expecting custom errors. This is because the ABI or `Interface` object is needed to decode the custom error name and parameters.
+
+> 💡 You can provide ABIs and `Interface` objects of multiple smart contracts where you expect custom errors. By doing so, you have a "universal" `ErrorDecoder` within your codebase capable of decoding any contract errors thrown. This decoder can then be reused throughout your code to handle any errors.
+
+If you're expecting custom errors from multiple contracts or from external contracts called within your contract, you can provide the ABIs or interfaces of those contracts:
 
 ```typescript
-const decodedError = decodeError(err, MyCustomErrorContract__factory.createInterface())
-// Prints "Invalid swap with token contract address 0xabcd."
-console.log('Custom error reason:', reason)
+const myContractAbi = [...]
+const externalContractAbi = [...]
+
+// From here on, the errorDecoder is aware of all the custom errors throw from these contracts.
+const errorDecoder = ErrorDecoder.create([myContractAbi, externalContractAbi])
+
+try {...} catch (err) {
+  // It's aware of errors from MyContract, ExternalContract and ExternalContract errors emitted from MyContract.
+  const decodedError = errorDecoder.decode(err)
+  // ...
+}
+```
+
+If you are using TypeChain in your project, it may be more convenient to pass the contract `Interface` objects directly:
+
+```typescript
+// If you have the contract instances, you can access their `interface` property
+const errorDecoder = ErrorDecoder.create([MyContract.interface, MySecondContract.interface])
+
+// Otherwise, you can use the `createInterface` method from the contract factory
+const errorDecoder = ErrorDecoder.create([
+  MyContract__factory.createInterface(),
+  MySecondContract__factory.createInterface(),
+])
+```
+
+You can also mix both ABIs and contract `Interface` objects, and the library will sort out the ABIs for you. This can be useful if you just want to append adhoc ABI of external contracts so that their errors can be recognised when decoding:
+
+```typescript
+const externalContractFullAbi = [...]
+const anotherExternalContractErrorOnlyAbi = [{
+    name: 'ExternalContractCustomError1',
+    type: 'error',
+}]
+
+const errorDecoder = ErrorDecoder.create([MyContract__factory.createInterface(), externalContractFullAbi, anotherExternalContractErrorOnlyAbi])
+```
+
+If the ABI of a custom error is not provided, the error name will be the selector of the custom error. In that case, you can check the selector of the error name in your reason mapper to handle the error accordingly:
+
+```typescript
+const customReasonMapper = ({ name, args }: DecodedError): string => {
+  switch (name) {
+    // For custom errors with ABI, you can check the error name directly
+    case 'InvalidSwapToken':
+      return `Invalid swap with token contract address ${args[0]}.`
+
+    // For custom errors without ABI, you'll have to check the error name against the selector
+    // Note that when ABI is not provided, the `args` will always be empty even if the custom error has parameters.
+    case '0xec7240f7':
+      return 'This is a custom error caught without its ABI provided.'
+
+    default:
+      return 'The transaction has reverted.'
+  }
+}
 ```
 
 ## Contributing
