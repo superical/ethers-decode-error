@@ -22,5 +22,6 @@
     // disable it, or understand what it enforces.
     // https://typescript-eslint.io/rules/explicit-function-return-type/
     "@typescript-eslint/explicit-function-return-type": "warn"
-  }
+  },
+  "ignorePatterns": ["**/*.js", "**/*.d.ts", "typechain-types/**/*"]
 }
