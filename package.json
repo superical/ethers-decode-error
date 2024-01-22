@@ -26,7 +26,7 @@
   "module": "dist/index.mjs",
   "umd:main": "dist/index.umd.js",
   "engines": {
-    "node": ">= 16 <19"
+    "node": ">=16"
   },
   "peerDependencies": {
     "ethers": "^6.0.0"
@@ -54,7 +54,7 @@
     "start": "node build/src/main.js",
     "clean": "rimraf coverage build tmp",
     "prebuild": "npm run lint",
-    "build": "rimraf dist && microbundle src/*.ts",
+    "build": "rimraf dist && microbundle src/*.ts --tsconfig tsconfig.release.json",
     "build:watch": "tsc -w -p tsconfig.json",
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
     "lint": "eslint . --ext .ts --ext .mts",
