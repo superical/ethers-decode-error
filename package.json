@@ -46,6 +46,7 @@
     "microbundle": "^0.15.1",
     "prettier": "~2.8",
     "rimraf": "~5.0",
+    "semantic-release": "^23.0.0",
     "ts-api-utils": "~0.0.44",
     "ts-node": "^10.9.2",
     "typescript": "~5.0"
@@ -59,7 +60,8 @@
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
     "lint": "eslint . --ext .ts --ext .mts",
     "test": "hardhat test",
-    "prettier": "prettier --config .prettierrc --write ."
+    "prettier": "prettier --config .prettierrc --write .",
+    "semantic-release": "semantic-release"
   },
   "keywords": [
     "blockchain",
