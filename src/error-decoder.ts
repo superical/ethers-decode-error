@@ -1,4 +1,10 @@
-import { ErrorFragment, Fragment, Interface, JsonFragment } from 'ethers'
+import {
+  ErrorFragment,
+  Fragment,
+  Interface,
+  JsonFragment,
+  TransactionReceipt,
+} from 'ethers'
 import { DecodedError } from './types'
 import {
   CustomErrorHandler,
@@ -25,6 +31,37 @@ export class ErrorDecoder {
     }))
   }
 
+  private async getContractOrTransactionError(error: Error): Promise<Error> {
+    const errorReceipt = (error as any).receipt as TransactionReceipt
+
+    if (!errorReceipt) return error
+
+    const resError = await this.getTransactionError(errorReceipt)
+
+    if (!resError) return error
+
+    return resError
+  }
+
+  private async getTransactionError(errorReceipt: TransactionReceipt): Promise<Error | null> {
+    if (!errorReceipt || errorReceipt.status !== 0) {
+      return undefined
+    }
+    const txHash = errorReceipt.hash
+    const provider = errorReceipt.provider
+    const tx = await provider.getTransaction(txHash)
+    try {
+      await provider.call({
+        ...tx,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      })
+      return null
+    } catch (e) {
+      return e as Error
+    }
+  }
+
   private getDataFromError(error: Error): string {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorData = (error as any).data ?? (error as any).error?.data
@@ -46,7 +83,7 @@ export class ErrorDecoder {
     return returnData
   }
 
-  public decode(error: unknown | Error): DecodedError {
+  public async decode(error: unknown | Error): Promise<DecodedError> {
     if (!(error instanceof Error)) {
       return unknownErrorResult({
         data: undefined,
@@ -57,7 +94,8 @@ export class ErrorDecoder {
 
     let returnData: string
     try {
-      returnData = this.getDataFromError(error)
+      const targetError = await this.getContractOrTransactionError(error)
+      returnData = this.getDataFromError(targetError)
     } catch (e) {
       if (error.message) {
         if (error.message.includes('rejected transaction')) {
