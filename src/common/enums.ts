@@ -5,4 +5,5 @@ export enum ErrorType {
   PanicError = 'PanicError',
   UnknownError = 'UnknownError',
   CustomError = 'CustomError',
+  RpcError = 'RpcError',
 }

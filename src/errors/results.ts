@@ -72,7 +72,7 @@ export const panicErrorResult: ErrorResultFormatter = ({ data, reason, args }) =
     type: ErrorType.PanicError,
     reason,
     data,
-    args
+    args,
   })
 
 export const customErrorResult: ErrorResultFormatter = ({ data, reason, fragment, args }) => {
@@ -87,3 +87,11 @@ export const customErrorResult: ErrorResultFormatter = ({ data, reason, fragment
     name: selector,
   })
 }
+
+export const rpcErrorResult: ErrorResultFormatter = ({ reason, name }) =>
+  baseErrorResult({
+    type: ErrorType.RpcError,
+    reason: reason ?? 'Error from JSON RPC provider',
+    data: null,
+    name: name?.toString() ?? null,
+  })
