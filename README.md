@@ -50,23 +50,39 @@ After creating the instance, you can repeatedly use the `decode` method througho
 try {
   // Send a transaction that will revert
 } catch (err) {
-  const decodedError: DecodedError = errorDecoder.decode(err)
+  const decodedError: decodedError = await errorDecoder.decode(err)
   console.log(`Revert reason: ${decodedError.reason}`)
 }
 ```
 
-The `DecodedError` object is the result of the decoded error, which contains the following properties for handling errors:
+### Decoded Error
 
-| Property    | Value Type       | Remarks                                                                                                                                                                                                           |
-| ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `type`      | `ErrorType`      | The type of the error. For eg, a revert due to custom error will have `ErrorType.CustomError`.                                                                                                                    |
-| `reason`    | `string \| null` | The decoded error message, or `null` if error is unknown or has no message.                                                                                                                                       |
-| `data`      | `string \| null` | The raw data bytes returned from the contract error, or `null` if error is unknown or empty.                                                                                                                      |
-| `args`      | `Array`          | The parameter values of the error if exists. For custom errors, the `args` will always be empty if no ABI or interface is supplied for decoding.                                                                  |
-| `name`      | `string \| null` | The name of the error. This can be used to identify the custom error emitted. For eg, `InvalidTokenSwap`. If no ABI is supplied for custom error, this will be the selector hex. `null` if error is `EmptyError`. |
-| `selector`  | `string \| null` | The hexidecimal value of the selector. `null` if error is `EmptyError`.                                                                                                                                           |
-| `signature` | `string \| null` | The signature of the error. `null` if error is `EmptyError` or no specified ABI for custom error.                                                                                                                 |
-| `fragment`  | `string \| null` | The ABI fragment of the error. `null` if error is `EmptyError` or no specified ABI for custom error.                                                                                                              |
+The `DecodedError` object is the result of the decoded error, which contains the following properties for handling the error occurred:
+
+| Property    | Value Type       | Remarks                                                                                                                                                                                                                                    |
+| ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `type`      | `ErrorType`      | The type of the error. See [Error Types](#error-types).                                                                                                                                                                                    |
+| `reason`    | `string \| null` | The decoded error message, or `null` if error is unknown or has no message.                                                                                                                                                                |
+| `data`      | `string \| null` | The raw data bytes returned from the contract error, or `null` if error is unknown or empty.                                                                                                                                               |
+| `args`      | `Array`          | The parameter values of the error if exists. For custom errors, the `args` will always be empty if no ABI or interface is supplied for decoding.                                                                                           |
+| `name`      | `string \| null` | The name of the error. This can be used to identify the custom error emitted. If no ABI is supplied for custom error, this will be the selector hex. If error is `RpcError`, this will be the error code. `null` if error is `EmptyError`. |
+| `selector`  | `string \| null` | The hexidecimal value of the selector. `null` if error is `EmptyError`.                                                                                                                                                                    |
+| `signature` | `string \| null` | The signature of the error. `null` if error is `EmptyError` or no specified ABI for custom error.                                                                                                                                          |
+| `fragment`  | `string \| null` | The ABI fragment of the error. `null` if error is `EmptyError` or no specified ABI for custom error.                                                                                                                                       |
+
+### Error Types
+
+These are the possible `ErrorType` that could be returned for the `type` property in the `DecodedError` object:
+
+| Type                        | Description                               |
+| --------------------------- | ----------------------------------------- |
+| `ErrorType.EmptyError`      | Contract reverted without reason provided |
+| `ErrorType.RevertError`     | Contract reverted with reason provided    |
+| `ErrorType.PanicError`      | Contract reverted due to a panic error    |
+| `ErrorType.CustomError`     | Contract reverted due to a custom error   |
+| `ErrorType.UserRejectError` | User rejected the transaction             |
+| `ErrorType.RpcError`        | An error from the JSON RPC                |
+| `ErrorType.UnknownError`    | An unknown error was thrown               |
 
 ## Examples
 
@@ -132,7 +148,7 @@ try {
   const tx = await MyCustomErrorContract.swap('0xabcd', 123)
   await tx.wait()
 } catch (err) {
-  const decodedError = errorDecoder.decode(err)
+  const decodedError = await errorDecoder.decode(err)
   const reason = customReasonMapper(decodedError)
   // Prints "Invalid swap with token contract address 0xabcd."
   console.log('Custom error reason:', reason)
@@ -168,7 +184,7 @@ const errorDecoder = ErrorDecoder.create([myContractAbi, externalContractAbi])
 
 try {...} catch (err) {
   // It's aware of errors from MyContract, ExternalContract and ExternalContract errors emitted from MyContract.
-  const decodedError = errorDecoder.decode(err)
+  const decodedError = await errorDecoder.decode(err)
   // ...
 }
 ```
