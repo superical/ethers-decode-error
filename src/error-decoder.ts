@@ -1,10 +1,4 @@
-import {
-  ErrorFragment,
-  Fragment,
-  Interface,
-  JsonFragment,
-  TransactionReceipt,
-} from 'ethers'
+import { ErrorFragment, Fragment, Interface, JsonFragment, TransactionReceipt } from 'ethers'
 import { DecodedError } from './types'
 import {
   CustomErrorHandler,
@@ -13,7 +7,7 @@ import {
   PanicErrorHandler,
   RevertErrorHandler,
 } from './errors/handlers'
-import { unknownErrorResult, userRejectErrorResult } from './errors/results'
+import { rpcErrorResult, unknownErrorResult, userRejectErrorResult } from './errors/results'
 
 export class ErrorDecoder {
   private readonly errorHandlers: {
@@ -92,31 +86,35 @@ export class ErrorDecoder {
       })
     }
 
-    let returnData: string
     try {
       const targetError = await this.getContractOrTransactionError(error)
-      returnData = this.getDataFromError(targetError)
+      const returnData = this.getDataFromError(targetError)
+
+      for (const { predicate, handler } of this.errorHandlers) {
+        if (predicate(returnData)) {
+          return handler(returnData, this.errorInterface)
+        }
+      }
+
+      return unknownErrorResult({
+        data: returnData,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reason: (error as any).message ?? 'Unrecognised error',
+      })
     } catch (e) {
       if (error.message) {
         if (error.message.includes('rejected transaction')) {
           return userRejectErrorResult({ data: null, reason: error.message })
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rpcError = error as any
+        if (rpcError.code !== undefined) {
+          return rpcErrorResult({ data: null, name: rpcError.code, reason: error.message })
+        }
         return unknownErrorResult({ data: null, reason: error.message })
       }
       return unknownErrorResult({ data: null })
     }
-
-    for (const { predicate, handler } of this.errorHandlers) {
-      if (predicate(returnData)) {
-        return handler(returnData, this.errorInterface)
-      }
-    }
-
-    return unknownErrorResult({
-      data: returnData,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      reason: (error as any).message ?? 'Unrecognised error',
-    })
   }
 
   public static create(
