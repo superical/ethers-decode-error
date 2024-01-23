@@ -30,7 +30,7 @@ describe('ErrorDecoder', () => {
     const fakeUnknownError = {}
 
     beforeEach(async () => {
-      decodedError = errorDecoder.decode(fakeUnknownError)
+      decodedError = await errorDecoder.decode(fakeUnknownError)
     })
 
     it('should return error type as UnknownError', async () => {
@@ -39,7 +39,7 @@ describe('ErrorDecoder', () => {
 
     it('should use error message if it exists', async () => {
       const fakeErrorMsg = 'Test message'
-      decodedError = errorDecoder.decode({ message: fakeErrorMsg })
+      decodedError = await errorDecoder.decode({ message: fakeErrorMsg })
 
       expect(decodedError.reason).to.equal(fakeErrorMsg)
     })
@@ -58,7 +58,7 @@ describe('ErrorDecoder', () => {
       const fakeUnknownError = new Error('The user rejected transaction in wallet')
 
       beforeEach(async () => {
-        decodedError = errorDecoder.decode(fakeUnknownError)
+        decodedError = await errorDecoder.decode(fakeUnknownError)
       })
 
       it('should return error type as UserError', async () => {
@@ -79,7 +79,7 @@ describe('ErrorDecoder', () => {
       const fakeUnknownError = new Error(fakeErrorMessage)
 
       beforeEach(async () => {
-        decodedError = errorDecoder.decode(fakeUnknownError)
+        decodedError = await errorDecoder.decode(fakeUnknownError)
       })
 
       it('should return error type as UnknownError', async () => {
@@ -99,7 +99,7 @@ describe('ErrorDecoder', () => {
       const fakeUnknownError = new Error()
 
       beforeEach(async () => {
-        decodedError = errorDecoder.decode(fakeUnknownError)
+        decodedError = await errorDecoder.decode(fakeUnknownError)
       })
 
       it('should return error type as UnknownError', async () => {
@@ -123,7 +123,7 @@ describe('ErrorDecoder', () => {
           await contract.revertWithReason('Test message')
           expect.fail('Expected to revert')
         } catch (e) {
-          decodedError = errorDecoder.decode(e)
+          decodedError = await errorDecoder.decode(e)
         }
       })
 
@@ -153,7 +153,7 @@ describe('ErrorDecoder', () => {
           await contract.revertWithoutReason()
           expect.fail('Expected to revert')
         } catch (e) {
-          decodedError = errorDecoder.decode(e)
+          decodedError = await errorDecoder.decode(e)
         }
       })
 
@@ -183,7 +183,7 @@ describe('ErrorDecoder', () => {
         await contract.panicUnderflow()
         expect.fail('Expected to revert')
       } catch (e) {
-        decodedError = errorDecoder.decode(e)
+        decodedError = await errorDecoder.decode(e)
       }
     })
 
@@ -255,7 +255,7 @@ describe('ErrorDecoder', () => {
               await contract.revertWithCustomErrorNoParam()
               expect.fail('Expected to revert')
             } catch (e) {
-              decodedError = errorDecoder.decode(e)
+              decodedError = await errorDecoder.decode(e)
             }
           })
 
@@ -282,7 +282,7 @@ describe('ErrorDecoder', () => {
                 await contract.revertWithCustomErrorNoParam()
                 expect.fail('Expected to revert')
               } catch (e) {
-                decodedError = errorDecoder.decode(e)
+                decodedError = await errorDecoder.decode(e)
               }
             })
 
@@ -316,7 +316,7 @@ describe('ErrorDecoder', () => {
                 await contract.revertWithCustomErrorNoParam()
                 expect.fail('Expected to revert')
               } catch (e) {
-                decodedError = errorDecoder.decode(e)
+                decodedError = await errorDecoder.decode(e)
               }
             })
 
@@ -356,7 +356,7 @@ describe('ErrorDecoder', () => {
               await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
               expect.fail('Expected to revert')
             } catch (e) {
-              decodedError = errorDecoder.decode(e)
+              decodedError = await errorDecoder.decode(e)
             }
           })
 
@@ -387,7 +387,7 @@ describe('ErrorDecoder', () => {
                 await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
                 expect.fail('Expected to revert')
               } catch (e) {
-                decodedError = errorDecoder.decode(e)
+                decodedError = await errorDecoder.decode(e)
               }
             })
 
@@ -421,7 +421,7 @@ describe('ErrorDecoder', () => {
                 await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
                 expect.fail('Expected to revert')
               } catch (e) {
-                decodedError = errorDecoder.decode(e)
+                decodedError = await errorDecoder.decode(e)
               }
             })
 
@@ -490,7 +490,7 @@ describe('ErrorDecoder', () => {
             await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = errorDecoder.decode(e)
+            decodedError = await errorDecoder.decode(e)
           }
 
           expect(decodedError.name).to.equal('CustomErrorWithParams')
@@ -501,7 +501,7 @@ describe('ErrorDecoder', () => {
             await contract.revertWithCustomNestedError(nestedContractAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = errorDecoder.decode(e)
+            decodedError = await errorDecoder.decode(e)
           }
 
           expect(decodedError.name).to.equal('NestedError')
@@ -518,7 +518,7 @@ describe('ErrorDecoder', () => {
             await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = errorDecoder.decode(e)
+            decodedError = await errorDecoder.decode(e)
           }
 
           expect(decodedError.name).to.equal('CustomErrorWithParams')
@@ -529,7 +529,7 @@ describe('ErrorDecoder', () => {
             await contract.revertWithCustomNestedError(nestedContractAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = errorDecoder.decode(e)
+            decodedError = await errorDecoder.decode(e)
           }
 
           expect(decodedError.name).to.equal('NestedError')
@@ -546,7 +546,7 @@ describe('ErrorDecoder', () => {
             await contract.revertWithCustomErrorWithParams(fakeAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = errorDecoder.decode(e)
+            decodedError = await errorDecoder.decode(e)
           }
 
           expect(decodedError.name).to.equal('CustomErrorWithParams')
@@ -557,7 +557,7 @@ describe('ErrorDecoder', () => {
             await contract.revertWithCustomNestedError(nestedContractAddress, fakeUint)
             expect.fail('Expected to revert')
           } catch (e) {
-            decodedError = errorDecoder.decode(e)
+            decodedError = await errorDecoder.decode(e)
           }
 
           expect(decodedError.name).to.equal('NestedError')
