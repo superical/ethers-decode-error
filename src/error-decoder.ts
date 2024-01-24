@@ -6,14 +6,13 @@ import {
   ErrorHandler,
   PanicErrorHandler,
   RevertErrorHandler,
+  RpcErrorHandler,
+  UserRejectionHandler,
 } from './errors/handlers'
-import { rpcErrorResult, unknownErrorResult, userRejectErrorResult } from './errors/results'
+import { unknownErrorResult } from './errors/results'
 
 export class ErrorDecoder {
-  private readonly errorHandlers: {
-    predicate: (data: string) => boolean
-    handler: ErrorHandler['handle']
-  }[] = []
+  private readonly errorHandlers: ErrorHandler[] = []
 
   private constructor(
     handlers: ErrorHandler[],
@@ -21,11 +20,12 @@ export class ErrorDecoder {
   ) {
     this.errorHandlers = handlers.map((handler) => ({
       predicate: handler.predicate,
-      handler: handler.handle,
+      handle: handler.handle,
     }))
   }
 
   private async getContractOrTransactionError(error: Error): Promise<Error> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorReceipt = (error as any).receipt as TransactionReceipt
 
     if (!errorReceipt) return error
@@ -56,12 +56,12 @@ export class ErrorDecoder {
     }
   }
 
-  private getDataFromError(error: Error): string {
+  private getDataFromError(error: Error): string | undefined {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorData = (error as any).data ?? (error as any).error?.data
 
     if (errorData === undefined) {
-      throw error
+      return undefined
     }
 
     let returnData = typeof errorData === 'string' ? errorData : errorData.data
@@ -71,7 +71,7 @@ export class ErrorDecoder {
     }
 
     if (returnData === undefined || typeof returnData !== 'string') {
-      throw error
+      return undefined
     }
 
     return returnData
@@ -82,39 +82,25 @@ export class ErrorDecoder {
       return unknownErrorResult({
         data: undefined,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        reason: (error as any).message ?? 'Unexpected error',
+        reason: (error as any).message ?? 'Invalid error',
       })
     }
 
-    try {
-      const targetError = await this.getContractOrTransactionError(error)
-      const returnData = this.getDataFromError(targetError)
+    const targetError = await this.getContractOrTransactionError(error)
+    const returnData = this.getDataFromError(targetError)
 
-      for (const { predicate, handler } of this.errorHandlers) {
-        if (predicate(returnData)) {
-          return handler(returnData, this.errorInterface)
-        }
+    for (const { predicate, handle } of this.errorHandlers) {
+      if (predicate(returnData, targetError)) {
+        return handle(returnData, { errorInterface: this.errorInterface, error: targetError })
       }
-
-      return unknownErrorResult({
-        data: returnData,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        reason: (error as any).message ?? 'Unrecognised error',
-      })
-    } catch (e) {
-      if (error.message) {
-        if (error.message.includes('rejected transaction')) {
-          return userRejectErrorResult({ data: null, reason: error.message })
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rpcError = error as any
-        if (rpcError.code !== undefined) {
-          return rpcErrorResult({ data: null, name: rpcError.code, reason: error.message })
-        }
-        return unknownErrorResult({ data: null, reason: error.message })
-      }
-      return unknownErrorResult({ data: null })
     }
+
+    return unknownErrorResult({
+      data: returnData,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reason: (targetError as any)?.message ?? 'Unexpected error',
+      name: targetError?.name,
+    })
   }
 
   public static create(
@@ -142,6 +128,8 @@ export class ErrorDecoder {
       new RevertErrorHandler(),
       new PanicErrorHandler(),
       new CustomErrorHandler(),
+      new UserRejectionHandler(),
+      new RpcErrorHandler(),
       ...(additionalErrorHandlers ?? []),
     ]
     return new ErrorDecoder(handlers, errorInterface)

@@ -13,12 +13,17 @@ type ErrorResultFormatterParam = {
 
 type ErrorResultFormatter = (params: ErrorResultFormatterParam) => DecodedError
 
+const formatReason = (
+  reason: string | undefined | null,
+  defaultReason: string | null,
+): string | null => (reason && reason.trim() !== '' ? reason : defaultReason)
+
 const baseErrorResult: (
   params: ErrorResultFormatterParam & { type: ErrorType },
 ) => DecodedError = ({ type, data, reason, fragment, args, selector, name }) => {
   let res: DecodedError = {
     type,
-    reason: reason ?? null,
+    reason: formatReason(reason, null),
     data: data ?? null,
     fragment: null,
     args: args ?? new Result(),
@@ -45,7 +50,7 @@ export const emptyErrorResult: ErrorResultFormatter = ({ data }) =>
 export const userRejectErrorResult: ErrorResultFormatter = ({ data = null, reason }) =>
   baseErrorResult({
     type: ErrorType.UserRejectError,
-    reason: reason ?? 'User has rejected the transaction',
+    reason: formatReason(reason, 'User has rejected the transaction'),
     data,
   })
 
@@ -59,11 +64,12 @@ export const revertErrorResult: ErrorResultFormatter = ({ data, reason, fragment
   })
 }
 
-export const unknownErrorResult: ErrorResultFormatter = ({ data, reason }) => {
+export const unknownErrorResult: ErrorResultFormatter = ({ data, reason, name }) => {
   return baseErrorResult({
     type: ErrorType.UnknownError,
-    reason: reason ?? 'Unknown error',
+    reason: formatReason(reason, 'Unknown error'),
     data,
+    name
   })
 }
 
@@ -79,7 +85,7 @@ export const customErrorResult: ErrorResultFormatter = ({ data, reason, fragment
   const selector = data.slice(0, 10)
   return baseErrorResult({
     type: ErrorType.CustomError,
-    reason: reason ?? `No ABI for custom error ${selector}`,
+    reason: formatReason(reason, `No ABI for custom error ${selector}`),
     data,
     fragment,
     args,
@@ -91,7 +97,7 @@ export const customErrorResult: ErrorResultFormatter = ({ data, reason, fragment
 export const rpcErrorResult: ErrorResultFormatter = ({ reason, name }) =>
   baseErrorResult({
     type: ErrorType.RpcError,
-    reason: reason ?? 'Error from JSON RPC provider',
+    reason: formatReason(reason, 'Error from JSON RPC provider'),
     data: null,
     name: name?.toString() ?? null,
   })
