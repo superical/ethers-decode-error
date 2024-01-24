@@ -46,8 +46,8 @@ describe('ErrorDecoder', () => {
       expect(decodedError.reason).to.equal(fakeErrorMsg)
     })
 
-    it('should return error message as Unexpected error', async () => {
-      expect(decodedError.reason).to.equal('Unexpected error')
+    it('should return error message as Invalid error', async () => {
+      expect(decodedError.reason).to.equal('Invalid error')
     })
 
     it('should return null data', async () => {

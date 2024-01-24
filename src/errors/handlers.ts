@@ -7,12 +7,16 @@ import {
   emptyErrorResult,
   panicErrorResult,
   revertErrorResult,
+  rpcErrorResult,
   unknownErrorResult,
+  userRejectErrorResult,
 } from './results'
 
+type ErrorHandlerErrorInfo = { errorInterface: Interface; error: Error }
+
 export interface ErrorHandler {
-  predicate: (data: string) => boolean
-  handle: (data: string, errorInterface?: Interface) => DecodedError
+  predicate: (data: string | undefined, error: Error) => boolean
+  handle: (data: string | undefined, errorInfo: ErrorHandlerErrorInfo) => DecodedError
 }
 
 export class EmptyErrorHandler implements ErrorHandler {
@@ -27,7 +31,7 @@ export class EmptyErrorHandler implements ErrorHandler {
 
 export class RevertErrorHandler implements ErrorHandler {
   public predicate(data: string): boolean {
-    return data.startsWith(ERROR_STRING_PREFIX)
+    return data?.startsWith(ERROR_STRING_PREFIX)
   }
 
   public handle(data: string): DecodedError {
@@ -46,7 +50,7 @@ export class RevertErrorHandler implements ErrorHandler {
 
 export class PanicErrorHandler implements ErrorHandler {
   public predicate(data: string): boolean {
-    return data.startsWith(PANIC_CODE_PREFIX)
+    return data?.startsWith(PANIC_CODE_PREFIX)
   }
 
   public handle(data: string): DecodedError {
@@ -66,11 +70,14 @@ export class PanicErrorHandler implements ErrorHandler {
 export class CustomErrorHandler implements ErrorHandler {
   public predicate(data: string): boolean {
     return (
-      data !== '0x' && !data.startsWith(ERROR_STRING_PREFIX) && !data.startsWith(PANIC_CODE_PREFIX)
+      data &&
+      data !== '0x' &&
+      !data?.startsWith(ERROR_STRING_PREFIX) &&
+      !data?.startsWith(PANIC_CODE_PREFIX)
     )
   }
 
-  public handle(data: string, errorInterface?: Interface): DecodedError {
+  public handle(data: string, { errorInterface }: ErrorHandlerErrorInfo): DecodedError {
     let result: Parameters<typeof customErrorResult>[0] = { data }
     if (errorInterface) {
       const customError = errorInterface.parseError(data)
@@ -82,5 +89,36 @@ export class CustomErrorHandler implements ErrorHandler {
     }
 
     return customErrorResult(result)
+  }
+}
+
+export class UserRejectionHandler implements ErrorHandler {
+  public predicate(data: string, error: Error): boolean {
+    return !data && error?.message?.includes('rejected transaction')
+  }
+
+  public handle(_data: string, { error }: ErrorHandlerErrorInfo): DecodedError {
+    return userRejectErrorResult({
+      data: null,
+      reason: error.message ?? 'The transaction was rejected',
+    })
+  }
+}
+
+export class RpcErrorHandler implements ErrorHandler {
+  public predicate(data: string, error: Error): boolean {
+    return (
+      !data &&
+      error.message &&
+      !error?.message?.includes('rejected transaction') &&
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (error as any).code !== undefined
+    )
+  }
+
+  public handle(_data: string, { error }: ErrorHandlerErrorInfo): DecodedError {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rpcError = error as any
+    return rpcErrorResult({ data: null, name: rpcError.code, reason: rpcError.message })
   }
 }
