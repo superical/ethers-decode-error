@@ -1,5 +1,7 @@
-import { DecodedError, ErrorType } from '../src'
 import { ethers } from 'hardhat'
+import { expect } from 'chai'
+import sinon from 'sinon'
+import type { SinonSpy } from 'sinon'
 import { getBytes, hexlify, concat, zeroPadValue } from 'ethers'
 import type { ContractFactory } from 'ethers'
 import {
@@ -8,8 +10,8 @@ import {
   MockNestedContract,
   MockNestedContract__factory,
 } from '../typechain-types'
-import { expect } from 'chai'
 import { ErrorDecoder } from '../src'
+import { DecodedError, ErrorType } from '../src'
 
 describe('ErrorDecoder', () => {
   let contract: MockContract
@@ -597,6 +599,62 @@ describe('ErrorDecoder', () => {
 
     it('should return empty args', async () => {
       expect(decodedError.args.length).to.equal(0)
+    })
+  })
+
+  describe('When transaction mined but reverted', () => {
+    const FakeTxError = class extends Error {
+      public receipt: {
+        status: number
+        provider: {
+          getTransaction: SinonSpy
+          call: SinonSpy
+        }
+      }
+      public constructor(public status: number) {
+        super('Fake transaction error')
+        this.receipt = {
+          status,
+          provider: {
+            getTransaction: sinon.fake(),
+            call: sinon.spy(),
+          },
+        }
+      }
+    }
+
+    beforeEach(async () => {
+      errorDecoder = ErrorDecoder.create()
+    })
+
+    describe('When receipt status is zero', () => {
+      const fakeTxError = new FakeTxError(0)
+
+      beforeEach(async () => {
+        decodedError = await errorDecoder.decode(fakeTxError)
+      })
+
+      it('should call transaction for error data', async () => {
+        expect(fakeTxError.receipt.provider.call.calledOnce).to.be.true
+      })
+
+      it('should return name as error name', async () => {
+        expect(decodedError.name).to.equal('Error')
+      })
+
+      it('should return reason as error message', async () => {
+        expect(decodedError.reason).to.equal('Fake transaction error')
+      })
+    })
+
+    describe('When receipt status is non-zero', () => {
+      const fakeTxError = new FakeTxError(1)
+
+      it('should not call transaction for error data', async () => {
+        await errorDecoder.decode(fakeTxError)
+
+        expect(fakeTxError.receipt.provider.call.calledOnce).to.be.false
+      })
     })
   })
 })
