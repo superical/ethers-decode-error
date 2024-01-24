@@ -98,7 +98,7 @@ try {
   const tx = await WETH.transfer('0x0', amount)
   await tx.wait()
 } catch (err) {
-  const { reason } = errorDecoder.decode(err)
+  const { reason } = await errorDecoder.decode(err)
   // Prints "ERC20: transfer to the zero address"
   console.log('Revert reason:', reason)
 }
@@ -116,7 +116,7 @@ try {
   const tx = await OverflowContract.add(123)
   await tx.wait()
 } catch (err) {
-  const { reason } = errorDecoder.decode(err)
+  const { reason } = await errorDecoder.decode(err)
   // Prints "Arithmetic operation underflowed or overflowed outside of an unchecked block"
   console.log('Panic message:', reason)
 }
