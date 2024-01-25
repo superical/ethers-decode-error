@@ -42,9 +42,9 @@ import { ErrorDecoder } from 'ethers-decode-error'
 const errorDecoder = ErrorDecoder.create()
 ```
 
-The `create` method optionally accepts an array of ABI or contract interface objects as its first argument. Although the ABI is not required for normal reverts, it's recommended to supply the ABI or contract interfaces if you're expecting custom errors. See the examples in [Custom Errors](#custom-errors) section for more details.
+The `create` method optionally accepts an array of ABI or contract interface objects as its first argument. Although the ABI is not required for regular reverts, it's recommended to supply the ABI or contract interfaces if you're expecting custom errors. See the examples in [Custom Error ABI and Interfaces](#custom-error-abi-and-interfaces) section for more details.
 
-After creating the instance, you can repeatedly use the `decode` method throughout your code to decode error objects:
+After creating the instance, you can reuse the `decode` method throughout your code to handle any errors thrown when interacting with smart contracts:
 
 ```typescript
 try {
@@ -72,7 +72,7 @@ The `DecodedError` object is the result of the decoded error, which contains the
 
 ### Error Types
 
-These are the possible `ErrorType` that could be returned for the `type` property in the `DecodedError` object:
+These are the possible `ErrorType` that could be returned as the `type` property in the `DecodedError` object:
 
 | Type                        | Description                               |
 | --------------------------- | ----------------------------------------- |
@@ -98,9 +98,12 @@ try {
   const tx = await WETH.transfer('0x0', amount)
   await tx.wait()
 } catch (err) {
-  const { reason } = await errorDecoder.decode(err)
+  const { reason, type } = await errorDecoder.decode(err)
+
   // Prints "ERC20: transfer to the zero address"
   console.log('Revert reason:', reason)
+  // Prints "true"
+  console.log(type === ErrorType.RevertError)
 }
 ```
 
@@ -116,9 +119,12 @@ try {
   const tx = await OverflowContract.add(123)
   await tx.wait()
 } catch (err) {
-  const { reason } = await errorDecoder.decode(err)
+  const { reason, type } = await errorDecoder.decode(err)
+
   // Prints "Arithmetic operation underflowed or overflowed outside of an unchecked block"
   console.log('Panic message:', reason)
+  // Prints "true"
+  console.log(type === ErrorType.PanicError)
 }
 ```
 
@@ -150,28 +156,35 @@ try {
 } catch (err) {
   const decodedError = await errorDecoder.decode(err)
   const reason = customReasonMapper(decodedError)
+
   // Prints "Invalid swap with token contract address 0xabcd."
   console.log('Custom error reason:', reason)
+  // Prints "true"
+  console.log(type === ErrorType.CustomError)
 }
 
-const customReasonMapper = ({ name, args }: DecodedError): string => {
+const customReasonMapper = ({ name, args, reason }: DecodedError): string => {
   switch (name) {
     case 'InvalidSwapToken':
       // You can access the error parameters using their index:
       return `Invalid swap with token contract address ${args[0]}.`
       // Or, you could also access the error parameters using their names:
       return `Invalid swap with token contract address ${args['token']}.`
+
+    // You can map any other custom errors here
+
     default:
-      return 'The transaction has reverted.'
+      // This handles the non-custom errors
+      return reason ?? 'An error has occurred'
   }
 }
 ```
 
-#### Custom Errors ABI and Interfaces
+#### Custom Error ABI and Interfaces
 
 Although the ABI or ethers `Interface` object of the contract is not required when decoding normal revert errors, it is recommended to provide it if you're expecting custom errors. This is because the ABI or `Interface` object is needed to decode the custom error name and parameters.
 
-> 💡 You can provide ABIs and `Interface` objects of multiple smart contracts where you expect custom errors. By doing so, you have a "universal" `ErrorDecoder` within your codebase capable of decoding any contract errors thrown. This decoder can then be reused throughout your code to handle any errors.
+> 💡 It's much more convenient to supply the ABIs and Interface objects for all smart contracts your application may interact with when creating the `ErrorDecoder` instance. You will then only need a single `ErrorDecoder` instance that you can reuse across your codebase to handle any smart contract errors.
 
 If you're expecting custom errors from multiple contracts or from external contracts called within your contract, you can provide the ABIs or interfaces of those contracts:
 
@@ -217,7 +230,7 @@ const errorDecoder = ErrorDecoder.create([MyContract__factory.createInterface(),
 If the ABI of a custom error is not provided, the error name will be the selector of the custom error. In that case, you can check the selector of the error name in your reason mapper to handle the error accordingly:
 
 ```typescript
-const customReasonMapper = ({ name, args }: DecodedError): string => {
+const customReasonMapper = ({ name, args, reason }: DecodedError): string => {
   switch (name) {
     // For custom errors with ABI, you can check the error name directly
     case 'InvalidSwapToken':
@@ -229,7 +242,7 @@ const customReasonMapper = ({ name, args }: DecodedError): string => {
       return 'This is a custom error caught without its ABI provided.'
 
     default:
-      return 'The transaction has reverted.'
+      return reason ?? 'An error has occurred'
   }
 }
 ```
