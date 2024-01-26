@@ -28,7 +28,7 @@ You will need to install ethers.js in your project if you have not:
 npm install ethers@^6 --save
 ```
 
-> 💡 If you wish to use it with ethers v5 instead, please refer to the [v1 release](../../tree/1.x).
+> 💡 If you wish to use it with ethers v5 instead, you may want to refer to [v1](../../tree/1.x).
 
 ## Usage
 
@@ -47,10 +47,12 @@ The `create` method optionally accepts an array of ABI or contract interface obj
 After creating the instance, you can reuse the `decode` method throughout your code to handle any errors thrown when interacting with smart contracts:
 
 ```typescript
+import type { DecodedError } from 'ethers-decode-error'
+
 try {
   // Send a transaction that will revert
 } catch (err) {
-  const decodedError: decodedError = await errorDecoder.decode(err)
+  const decodedError: DecodedError = await errorDecoder.decode(err)
   console.log(`Revert reason: ${decodedError.reason}`)
 }
 ```
