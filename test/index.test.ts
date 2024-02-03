@@ -569,36 +569,88 @@ describe('ErrorDecoder', () => {
   })
 
   describe('When reverted not due to contract errors', () => {
-    beforeEach(async () => {
-      try {
-        await contract.revertWithReason('Test message', {
-          gasLimit: 100000,
-          gasPrice: '1180820112192848923743894728934',
-        })
-        expect.fail('Expected to revert')
-      } catch (e) {
-        decodedError = await errorDecoder.decode(e)
+    describe('When decoding RPC errors', () => {
+      beforeEach(async () => {
+        try {
+          await contract.revertWithReason('Test message', {
+            gasLimit: 100000,
+            gasPrice: '1180820112192848923743894728934',
+          })
+          expect.fail('Expected to revert')
+        } catch (e) {
+          decodedError = await errorDecoder.decode(e)
+        }
+      })
+
+      it('should return error type as RpcError', async () => {
+        expect(decodedError.type).to.equal(ErrorType.RpcError)
+      })
+
+      it('should return error code as name', async () => {
+        expect(decodedError.name).to.equal('-32000')
+      })
+
+      it('should return the error reason', async () => {
+        expect(decodedError.reason).to.contain("sender doesn't have enough funds to send tx")
+      })
+
+      it('should return data as null', async () => {
+        expect(decodedError.data).to.be.null
+      })
+
+      it('should return empty args', async () => {
+        expect(decodedError.args.length).to.equal(0)
+      })
+    })
+
+    describe('When obtaining the error message in RPC errors', () => {
+      const FakeRpcError = class extends Error {
+        public constructor(
+          public code?: string,
+          public info?: { error: { code: number; message: string } },
+          public shortMessage?: string,
+        ) {
+          super('Fake error object message')
+        }
       }
-    })
 
-    it('should return error type as RpcError', async () => {
-      expect(decodedError.type).to.equal(ErrorType.RpcError)
-    })
+      let fakeRpcError = new FakeRpcError()
 
-    it('should return error code as name', async () => {
-      expect(decodedError.name).to.equal('-32000')
-    })
+      beforeEach(async () => {
+        fakeRpcError = new FakeRpcError(
+          'INSUFFICIENT_FUNDS',
+          {
+            error: {
+              code: -32000,
+              message: 'insufficient funds for gas * price + value: balance 0',
+            },
+          },
+          'insufficient funds for intrinsic transaction cost',
+        )
+      })
 
-    it('should return the error reason', async () => {
-      expect(decodedError.reason).to.contain("sender doesn't have enough funds to send tx")
-    })
+      it('should use long error message if exists', async () => {
+        decodedError = await errorDecoder.decode(fakeRpcError)
 
-    it('should return data as null', async () => {
-      expect(decodedError.data).to.be.null
-    })
+        expect(decodedError.reason).to.equal(fakeRpcError.info.error.message)
+      })
 
-    it('should return empty args', async () => {
-      expect(decodedError.args.length).to.equal(0)
+      it('should use short message if long error message does not exist', async () => {
+        fakeRpcError.info = undefined
+
+        decodedError = await errorDecoder.decode(fakeRpcError)
+
+        expect(decodedError.reason).to.equal(fakeRpcError.shortMessage)
+      })
+
+      it('should fallback to using message in error object', async () => {
+        fakeRpcError.info = undefined
+        fakeRpcError.shortMessage = undefined
+
+        decodedError = await errorDecoder.decode(fakeRpcError)
+
+        expect(decodedError.reason).to.equal(fakeRpcError.message)
+      })
     })
   })
 

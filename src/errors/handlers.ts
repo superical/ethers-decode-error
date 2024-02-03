@@ -119,6 +119,7 @@ export class RpcErrorHandler implements ErrorHandler {
   public handle(_data: string, { error }: ErrorHandlerErrorInfo): DecodedError {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rpcError = error as any
-    return rpcErrorResult({ data: null, name: rpcError.code, reason: rpcError.message })
+    const reason = rpcError.info?.error?.message ?? rpcError.shortMessage ?? rpcError.message
+    return rpcErrorResult({ data: null, name: rpcError.code, reason })
   }
 }
