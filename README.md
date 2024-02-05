@@ -28,7 +28,8 @@ You will need to install ethers.js in your project if you have not:
 npm install ethers@^6 --save
 ```
 
-> 💡 If you wish to use it with ethers v5 instead, you may want to refer to [v1](../../tree/1.x).
+> [!NOTE]
+> If you wish to use it with ethers v5 instead, you may want to refer to [v1](../../tree/1.x).
 
 ## Usage
 
@@ -42,7 +43,8 @@ import { ErrorDecoder } from 'ethers-decode-error'
 const errorDecoder = ErrorDecoder.create()
 ```
 
-The `create` method optionally accepts an array of ABI or contract interface objects as its first argument. Although the ABI is not required for regular reverts, it's recommended to supply the ABI or contract interfaces if you're expecting custom errors. See the examples in [Custom Error ABI and Interfaces](#custom-error-abi-and-interfaces) section for more details.
+> [!IMPORTANT]
+> The `create` method optionally accepts an array of ABI or contract interface objects as its first argument. Although the ABI is not required for regular reverts, it's recommended to supply the ABI or contract interfaces if you're expecting custom errors. See the examples in [Custom Error ABI and Interfaces](#custom-error-abi-and-interfaces) section for more details.
 
 After creating the instance, you can reuse the `decode` method throughout your code to handle any errors thrown when interacting with smart contracts:
 
@@ -186,7 +188,8 @@ const customReasonMapper = ({ name, args, reason }: DecodedError): string => {
 
 Although the ABI or ethers `Interface` object of the contract is not required when decoding normal revert errors, it is recommended to provide it if you're expecting custom errors. This is because the ABI or `Interface` object is needed to decode the custom error name and parameters.
 
-> 💡 It's much more convenient to supply the ABIs and Interface objects for all smart contracts your application may interact with when creating the `ErrorDecoder` instance. You will then only need a single `ErrorDecoder` instance that you can reuse across your codebase to handle any smart contract errors.
+> [!TIP]
+> It's much more convenient to supply the ABIs and Interface objects for all smart contracts your application may interact with when creating the `ErrorDecoder` instance. You will then only need a single `ErrorDecoder` instance that you can reuse across your codebase to handle any smart contract errors.
 
 If you're expecting custom errors from multiple contracts or from external contracts called within your contract, you can provide the ABIs or interfaces of those contracts:
 
