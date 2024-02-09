@@ -17,12 +17,12 @@
   "type": "commonjs",
   "source": "src/index.ts",
   "exports": {
-    "require": "./dist/index.cjs",
+    "require": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "default": "./dist/index.mjs"
   },
   "types": "dist/index.d.ts",
-  "main": "dist/index.cjs",
+  "main": "dist/index.js",
   "module": "dist/index.mjs",
   "umd:main": "dist/index.umd.js",
   "engines": {
@@ -55,11 +55,10 @@
   },
   "scripts": {
     "start": "node build/src/main.js",
-    "clean": "rimraf coverage build tmp",
+    "clean": "rimraf dist",
     "prebuild": "npm run lint",
-    "build": "rimraf dist && microbundle src/*.ts --tsconfig tsconfig.release.json",
+    "build": "npm run clean && microbundle src/*.ts --tsconfig tsconfig.release.json",
     "build:watch": "tsc -w -p tsconfig.json",
-    "build:release": "npm run clean && tsc -p tsconfig.release.json",
     "lint": "eslint . --ext .ts --ext .mts",
     "test": "hardhat test",
     "prettier": "prettier --config .prettierrc --write .",
